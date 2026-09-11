@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -47,10 +48,12 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final BookRepository bookRepository;
+    private final Clock clock;
 
-    public ReservationService(ReservationRepository reservationRepository, BookRepository bookRepository) {
+    public ReservationService(ReservationRepository reservationRepository, BookRepository bookRepository, Clock clock) {
         this.reservationRepository = reservationRepository;
         this.bookRepository = bookRepository;
+        this.clock = clock;
     }
 
     @Transactional
@@ -70,7 +73,7 @@ public class ReservationService {
             throw new BookUnavailableException("No copies available for reservation", book.getAvailableCopies());
         }
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
 
         Reservation reservation = Reservation.builder()
                 .book(book)
@@ -100,7 +103,7 @@ public class ReservationService {
         List<Reservation> reservations = reservationRepository.findByUserIdAndStatusInOrderByReservedAtDesc(
                 user.getId(), List.of(ReservationStatus.RESERVED, ReservationStatus.CHECKED_OUT));
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
 
         List<ActiveReservationItem> items = reservations.stream()
                 .map(reservation -> toActiveItem(reservation, now))
@@ -124,7 +127,7 @@ public class ReservationService {
                     "Can only checkout reservations with RESERVED status", reservation.getStatus().name());
         }
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         Instant dueDate = now.plus(CHECKOUT_PERIOD_DAYS, ChronoUnit.DAYS);
 
         reservation.setStatus(ReservationStatus.CHECKED_OUT);
@@ -157,7 +160,7 @@ public class ReservationService {
                     "Can only return books with CHECKED_OUT status", reservation.getStatus().name());
         }
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         int lateDays = calculateLateDays(reservation.getDueDate(), now);
         BigDecimal lateFee = LATE_FEE_PER_DAY.multiply(BigDecimal.valueOf(lateDays));
 

@@ -2,6 +2,7 @@ package assembly.general.api.security;
 
 import assembly.general.api.entity.User;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,8 +45,12 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, String expectedEmail) {
-        String email = extractEmail(token);
-        return email.equals(expectedEmail) && !isTokenExpired(token);
+        try {
+            String email = extractEmail(token);
+            return email.equals(expectedEmail) && !isTokenExpired(token);
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
