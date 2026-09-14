@@ -101,7 +101,7 @@ class ReservationServiceTest {
     @Test
     void createReservationDecrementsAvailableCopiesAndSetsExpiry() {
         when(reservationRepository.countByUserIdAndStatusIn(eq(patron.getId()), any())).thenReturn(0L);
-        when(bookRepository.findById(book.getId())).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdForUpdate(book.getId())).thenReturn(Optional.of(book));
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ReservationResponse response = reservationService.createReservation(patron, book.getId());
@@ -119,13 +119,13 @@ class ReservationServiceTest {
         assertThatThrownBy(() -> reservationService.createReservation(patron, book.getId()))
                 .isInstanceOf(ReservationLimitExceededException.class);
 
-        verify(bookRepository, never()).findById(any());
+        verify(bookRepository, never()).findByIdForUpdate(any());
     }
 
     @Test
     void createReservationThrowsWhenBookMissing() {
         when(reservationRepository.countByUserIdAndStatusIn(eq(patron.getId()), any())).thenReturn(0L);
-        when(bookRepository.findById(book.getId())).thenReturn(Optional.empty());
+        when(bookRepository.findByIdForUpdate(book.getId())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> reservationService.createReservation(patron, book.getId()))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -135,7 +135,7 @@ class ReservationServiceTest {
     void createReservationThrowsWhenNoCopiesAvailable() {
         book.setAvailableCopies(0);
         when(reservationRepository.countByUserIdAndStatusIn(eq(patron.getId()), any())).thenReturn(0L);
-        when(bookRepository.findById(book.getId())).thenReturn(Optional.of(book));
+        when(bookRepository.findByIdForUpdate(book.getId())).thenReturn(Optional.of(book));
 
         assertThatThrownBy(() -> reservationService.createReservation(patron, book.getId()))
                 .isInstanceOf(BookUnavailableException.class);
@@ -233,9 +233,10 @@ class ReservationServiceTest {
                 .book(book)
                 .user(patron)
                 .status(ReservationStatus.CHECKED_OUT)
-                .dueDate(Instant.now().plus(2, ChronoUnit.DAYS))
+                .dueDate(Instant.now(clock).plus(2, ChronoUnit.DAYS))
                 .build();
         when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
+        when(bookRepository.findByIdForUpdate(book.getId())).thenReturn(Optional.of(book));
 
         ReturnRequest request = new ReturnRequest();
         request.setCondition(BookCondition.GOOD);
@@ -262,6 +263,7 @@ class ReservationServiceTest {
                 .dueDate(dueDate)
                 .build();
         when(reservationRepository.findById(reservationId)).thenReturn(Optional.of(reservation));
+        when(bookRepository.findByIdForUpdate(book.getId())).thenReturn(Optional.of(book));
 
         ReservationService serviceAtReturnTime = new ReservationService(
                 reservationRepository, bookRepository, Clock.fixed(returnedAt, ZoneOffset.UTC));

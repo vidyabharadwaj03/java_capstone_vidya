@@ -66,7 +66,7 @@ public class ReservationService {
                     "You have reached the maximum of 5 active reservations", (int) activeCount);
         }
 
-        Book book = bookRepository.findById(bookId)
+        Book book = bookRepository.findByIdForUpdate(bookId)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with ID: " + bookId));
 
         if (book.getAvailableCopies() <= 0) {
@@ -171,7 +171,8 @@ public class ReservationService {
         reservation.setLateDays(lateDays);
         reservation.setLateFee(lateFee);
 
-        Book book = reservation.getBook();
+        Book book = bookRepository.findByIdForUpdate(reservation.getBook().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Book not found with ID: " + reservation.getBook().getId()));
         book.setAvailableCopies(book.getAvailableCopies() + 1);
         bookRepository.save(book);
         reservationRepository.save(reservation);
