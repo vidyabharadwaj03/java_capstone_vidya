@@ -15,10 +15,12 @@ import assembly.general.api.exception.InvalidCredentialsException;
 import assembly.general.api.repository.ReservationRepository;
 import assembly.general.api.repository.UserRepository;
 import assembly.general.api.security.JwtService;
+import assembly.general.api.security.LoginAttemptService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 
@@ -29,15 +31,21 @@ public class UserService {
     private final ReservationRepository reservationRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final LoginAttemptService loginAttemptService;
+    private final Clock clock;
 
     public UserService(UserRepository userRepository,
                         ReservationRepository reservationRepository,
                         PasswordEncoder passwordEncoder,
-                        JwtService jwtService) {
+                        JwtService jwtService,
+                        LoginAttemptService loginAttemptService,
+                        Clock clock) {
         this.userRepository = userRepository;
         this.reservationRepository = reservationRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.loginAttemptService = loginAttemptService;
+        this.clock = clock;
     }
 
     @Transactional
@@ -54,7 +62,7 @@ public class UserService {
                 .phoneNumber(request.getPhoneNumber())
                 .role(Role.PATRON)
                 .membershipStatus(MembershipStatus.ACTIVE)
-                .memberSince(Instant.now())
+                .memberSince(Instant.now(clock))
                 .build();
 
         User saved = userRepository.save(user);
@@ -72,12 +80,16 @@ public class UserService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
+        loginAttemptService.checkAllowed(request.getEmail());
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        User user = userRepository.findByEmail(request.getEmail()).orElse(null);
+
+        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            loginAttemptService.recordFailure(request.getEmail());
             throw new InvalidCredentialsException("Invalid email or password");
         }
+
+        loginAttemptService.recordSuccess(request.getEmail());
 
         String token = jwtService.generateToken(user);
 

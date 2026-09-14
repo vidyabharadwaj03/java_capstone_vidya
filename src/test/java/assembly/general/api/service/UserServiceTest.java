@@ -14,14 +14,18 @@ import assembly.general.api.exception.InvalidCredentialsException;
 import assembly.general.api.repository.ReservationRepository;
 import assembly.general.api.repository.UserRepository;
 import assembly.general.api.security.JwtService;
+import assembly.general.api.security.LoginAttemptService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.quality.Strictness;
+import org.mockito.junit.jupiter.MockitoSettings;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +39,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class UserServiceTest {
 
     @Mock
@@ -49,6 +54,12 @@ class UserServiceTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private LoginAttemptService loginAttemptService;
+
+    @Mock
+    private Clock clock;
+
     @InjectMocks
     private UserService userService;
 
@@ -57,6 +68,8 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
+        when(clock.instant()).thenReturn(Instant.now());
+
         registerRequest = new RegisterRequest();
         registerRequest.setEmail("new.user@example.com");
         registerRequest.setPassword("SecurePass123!");

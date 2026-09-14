@@ -82,4 +82,41 @@ class AuthFlowIntegrationTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("AUTHENTICATION_FAILED"));
     }
+
+    @Test
+    void repeatedFailedLoginsAreRateLimited() throws Exception {
+        Map<String, String> loginBody = Map.of(
+                "email", "rate.limit.test@example.com",
+                "password", "WrongPassword123!"
+        );
+
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(loginBody)))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(loginBody)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.error").value("TOO_MANY_ATTEMPTS"));
+    }
+
+    @Test
+    void malformedJsonBodyReturnsValidationError() throws Exception {
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ not valid json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void invalidUuidPathVariableReturnsValidationError() throws Exception {
+        mockMvc.perform(get("/api/catalog/books/not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"));
+    }
 }
