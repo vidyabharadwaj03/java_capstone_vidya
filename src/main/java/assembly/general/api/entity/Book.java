@@ -6,6 +6,7 @@ import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -21,7 +22,12 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "books")
+@Table(name = "books", indexes = {
+        @Index(name = "idx_books_genre", columnList = "genre"),
+        @Index(name = "idx_books_title", columnList = "title"),
+        @Index(name = "idx_books_author", columnList = "author"),
+        @Index(name = "idx_books_publication_year", columnList = "publication_year")
+})
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
